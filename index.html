@@ -14,7 +14,7 @@
   <!-- HEADER BAR -->
   <header class="bg-white border-b border-gray-200 sticky top-0 z-10 px-4 py-3 flex justify-between items-center shadow-sm">
     <h1 id="header-title" class="text-xl font-bold select-none cursor-pointer tracking-tight text-slate-800 active:opacity-60 transition">
-      静态 静态 🕌 Jadwal Korrem Masjid
+      🕌 Jadwal Korrem Masjid
     </h1>
     <div id="admin-actions" class="hidden flex gap-2 items-center">
       <button id="btn-add" class="bg-blue-600 hover:bg-blue-700 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-lg shadow-sm transition">+</button>
@@ -27,7 +27,6 @@
     <!-- IOS STYLE CALENDAR CARD -->
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4">
       <div class="flex justify-between items-center mb-4">
-        <!-- Area Judul Kalender + Dropdown Navigasi Cepat -->
         <div class="relative flex items-center gap-1">
           <h2 id="calendar-month-year" class="text-lg font-semibold text-slate-800 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded-lg transition flex items-center gap-1 select-none">
             <span>Mei 2026</span> <span class="text-xs text-gray-400">▼</span>
@@ -47,7 +46,7 @@
         </div>
       </div>
 
-      <!-- Nama Hari (Format Baru: Dimulai dari Senin) -->
+      <!-- Nama Hari -->
       <div class="grid grid-cols-7 gap-1 text-center text-xs font-medium text-gray-400 mb-2">
         <div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div><div>Sab</div><div>Min</div>
       </div>
@@ -95,6 +94,13 @@
           <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Alamat Masjid</label>
           <textarea required id="form-alamat" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-sm focus:outline-none focus:border-blue-500" rows="2"></textarea>
         </div>
+        
+        <!-- 1. Form Input menggunakan id="form-gmaps" -->
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Link Google Maps Masjid</label>
+          <input type="url" id="form-gmaps" placeholder="https://maps.app.goo.gl/..." class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+
         <div class="grid grid-cols-2 gap-2">
           <div>
             <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Nama Takmir</label>
@@ -226,7 +232,6 @@
       if (selectedDateStr) renderDetail();
     }
 
-    // Fungsi Baru: Mengambil 10 agenda mendatang secara global (lintas bulan)
     async function fetchNextAgendaGlobal() {
       const todayStr = formatDateLocal(new Date());
 
@@ -315,6 +320,7 @@
       }
     }
 
+    // 2. DETAIL MASJID MENGGUNAKAN KOLOM item.gmaps
     function renderDetail() {
       detailDateTitle.innerText = `Jadwal Tanggal: ${new Date(selectedDateStr).toLocaleDateString('id-ID', { dateStyle: 'medium' })}`;
       detailList.innerHTML = '';
@@ -342,6 +348,12 @@
           socialLinksHtml += `</div>`;
         }
 
+        // Generate button berdasarkan properti item.gmaps
+        let gmapsHtml = '';
+        if (item.gmaps) {
+          gmapsHtml = `<a href="${item.gmaps}" target="_blank" class="inline-flex items-center gap-0.5 ml-2 bg-blue-50 text-blue-600 hover:bg-blue-100 px-1.5 py-0.5 rounded text-[10px] font-semibold transition">📍 Peta Lokasi</a>`;
+        }
+
         const div = document.createElement('div');
         div.className = "p-3 bg-slate-50 rounded-xl space-y-2 border border-slate-100 shadow-sm";
         div.innerHTML = `
@@ -354,7 +366,7 @@
               ${item.status_selesai ? 'Selesai' : 'Rencana'}
             </span>
           </div>
-          <p class="text-xs text-gray-600">📍 ${item.alamat_masjid}</p>
+          <p class="text-xs text-gray-600">📍 ${item.alamat_masjid} ${gmapsHtml}</p>
           
           ${socialLinksHtml}
 
@@ -416,7 +428,7 @@
       });
     }
 
-    // Mengganti render fungsi lama agar menerima list data global hasil filter limit 10
+    // 3. AGENDA MENDATANG MENGGUNAKAN KOLOM item.gmaps
     function renderNextAgenda(nextAgendas) {
       nextAgendaList.innerHTML = '';
 
@@ -429,7 +441,6 @@
         const div = document.createElement('div');
         div.className = "bg-white rounded-2xl p-3 shadow-sm border border-gray-200 flex items-center justify-between gap-3 cursor-pointer hover:bg-gray-50 transition active:scale-[0.99]";
         
-        // Interaktivitas klik: Otomatis memindahkan fokus kalender ke target tanggal
         div.onclick = () => {
           const targetDate = new Date(item.jadwal_dibersihkan);
           currentDate = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
@@ -438,11 +449,16 @@
           fetchSchedules();
         };
 
+        let inlineGmaps = '';
+        if (item.gmaps) {
+          inlineGmaps = `<a href="${item.gmaps}" target="_blank" onclick="event.stopPropagation();" class="text-blue-500 hover:text-blue-700 inline-block font-bold ml-1">🗺️ Map</a>`;
+        }
+
         div.innerHTML = `
           <div class="min-w-0 flex-1">
             <span class="inline-block text-[9px] font-bold bg-slate-100 text-slate-600 px-1 rounded mb-0.5">Aksi Ke-${item.aksi_ke || '-'}</span>
             <h4 class="font-semibold text-slate-800 text-sm truncate">${item.nama_masjid}</h4>
-            <p class="text-[11px] text-gray-400 truncate">${item.alamat_masjid}</p>
+            <p class="text-[11px] text-gray-400 truncate">📍 ${item.alamat_masjid} ${inlineGmaps}</p>
           </div>
           <div class="text-right shrink-0">
             <span class="block text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">
@@ -493,7 +509,7 @@
       document.getElementById('btn-exit-admin').onclick = () => {
         isAdmin = false;
         adminActions.classList.add('hidden');
-        headerTitle.innerHTML = '静态 🕌 Jadwal Korrem Masjid';
+        headerTitle.innerHTML = 'Jadwal Korrem Masjid';
         if (selectedDateStr) renderDetail();
       };
 
@@ -538,12 +554,14 @@
         renderCalendar();
       };
 
+      // 4. PROSES SUBMIT UPDATE & INSERT MENYESUAIKAN KOLOM gmaps
       scheduleForm.onsubmit = async (e) => {
         e.preventDefault();
         const id = document.getElementById('form-id').value;
         const payload = {
           nama_masjid: document.getElementById('form-nama').value,
           alamat_masjid: document.getElementById('form-alamat').value,
+          gmaps: document.getElementById('form-gmaps').value, // mapping ke kolom 'gmaps'
           nama_takmir: document.getElementById('form-takmir').value,
           no_wa_takmir: document.getElementById('form-wa').value,
           jadwal_dibersihkan: document.getElementById('form-tanggal').value,
@@ -565,11 +583,13 @@
       };
     }
 
+    // 5. PARSING DATA EDIT MENYESUAIKAN KOLOM item.gmaps
     window.openEditForm = (item) => {
       document.getElementById('modal-title').innerText = "Edit Jadwal Masjid";
       document.getElementById('form-id').value = item.id;
       document.getElementById('form-nama').value = item.nama_masjid;
       document.getElementById('form-alamat').value = item.alamat_masjid;
+      document.getElementById('form-gmaps').value = item.gmaps || ''; // parsing dari 'gmaps'
       document.getElementById('form-takmir').value = item.nama_takmir;
       document.getElementById('form-wa').value = item.no_wa_takmir;
       document.getElementById('form-tanggal').value = item.jadwal_dibersihkan;
