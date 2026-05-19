@@ -14,7 +14,7 @@
   <!-- HEADER BAR -->
   <header class="bg-white border-b border-gray-200 sticky top-0 z-10 px-4 py-3 flex justify-between items-center shadow-sm">
     <h1 id="header-title" class="text-xl font-bold select-none cursor-pointer tracking-tight text-slate-800 active:opacity-60 transition">
-      静态 🕌 Jadwal Korrem Masjid
+      静态 静态 🕌 Jadwal Korrem Masjid
     </h1>
     <div id="admin-actions" class="hidden flex gap-2 items-center">
       <button id="btn-add" class="bg-blue-600 hover:bg-blue-700 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-lg shadow-sm transition">+</button>
@@ -40,9 +40,10 @@
           </div>
         </div>
 
-        <div class="flex gap-4 text-blue-600 font-semibold">
-          <button id="btn-prev-month" class="p-1 px-3 bg-gray-50 rounded-lg active:bg-gray-200">&#10094;</button>
-          <button id="btn-next-month" class="p-1 px-3 bg-gray-50 rounded-lg active:bg-gray-200">&#10095;</button>
+        <div class="flex gap-2 text-blue-600 font-semibold items-center">
+          <button id="btn-prev-month" class="p-1 px-3 bg-gray-50 rounded-lg active:bg-gray-200 text-sm">&#10094;</button>
+          <button id="btn-today" class="p-1 px-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-xs font-bold transition active:scale-95">Hari Ini</button>
+          <button id="btn-next-month" class="p-1 px-3 bg-gray-50 rounded-lg active:bg-gray-200 text-sm">&#10095;</button>
         </div>
       </div>
 
@@ -179,6 +180,7 @@
     window.addEventListener('DOMContentLoaded', () => {
       initDropdownOptions();
       fetchSchedules();
+      fetchNextAgendaGlobal();
       setupEventListeners();
     });
 
@@ -221,8 +223,24 @@
       }
       
       renderCalendar();
-      renderNextAgenda();
       if (selectedDateStr) renderDetail();
+    }
+
+    // Fungsi Baru: Mengambil 10 agenda mendatang secara global (lintas bulan)
+    async function fetchNextAgendaGlobal() {
+      const todayStr = formatDateLocal(new Date());
+
+      const { data, error } = await supabaseClient
+        .from('masjid_schedules')
+        .select('*')
+        .gte('jadwal_dibersihkan', todayStr)
+        .order('jadwal_dibersihkan', { ascending: true })
+        .order('aksi_ke', { ascending: true })
+        .limit(10);
+
+      if (!error && data) {
+        renderNextAgenda(data);
+      }
     }
 
     function renderCalendar() {
@@ -236,15 +254,12 @@
       const year = currentDate.getFullYear();
       const month = currentDate.getMonth();
       
-      // LOGIKA BARU: Ambil index hari pertama (0 = Ahad, 1 = Senin, dst)
       let startDay = new Date(year, month, 1).getDay();
-      // Konversi: Senin menjadi 0, Selasa=1, ..., Ahad/Minggu menjadi 6
       startDay = startDay === 0 ? 6 : startDay - 1;
 
       const totalDays = new Date(year, month + 1, 0).getDate();
       const todayStr = formatDateLocal(new Date());
 
-      // Menambahkan kontainer kosong untuk offset tanggal awal bulan
       for (let i = 0; i < startDay; i++) {
         calendarGrid.appendChild(document.createElement('div'));
       }
@@ -309,7 +324,7 @@
         .sort((a, b) => (a.aksi_ke || 0) - (b.aksi_ke || 0));
 
       if (activeSchedules.length === 0) {
-        detailList.innerHTML = `<p class="text-sm text-gray-400 text-center py-4">Tidak ada jadwal pembersihan.</p>`;
+        detailList.innerHTML = `<p class="text-sm text-gray-400 text-center py-4">Tidak ada jadwal pembersihan di bulan yang aktif.</p>`;
         return;
       }
 
@@ -345,7 +360,7 @@
 
           <div class="text-xs text-gray-500 pt-2 border-t border-dashed flex justify-between items-center">
             <div><p class="font-medium text-slate-700">Takmir: ${item.nama_takmir}</p></div>
-            <a href="https://wa.me/${item.no_wa_takmir.replace(/[^0-9]/g, '')}" target="_blank" class="bg-emerald-500 text-white px-3 py-1 rounded-full font-semibold text-[11px]">💬 WhatsApp</a>
+            <a href="https://wa.me/${item.no_wa_takmir ? item.no_wa_takmir.replace(/[^0-9]/g, '') : ''}" target="_blank" class="bg-emerald-500 text-white px-3 py-1 rounded-full font-semibold text-[11px]">💬 WhatsApp</a>
           </div>
           <div class="admin-edit-zone ${isAdmin ? 'flex' : 'hidden'} gap-2 pt-2 border-t mt-2">
             <button onclick='window.openEditForm(${JSON.stringify(item)})' class="flex-1 bg-gray-200 text-slate-700 text-xs py-1.5 font-medium rounded-lg">Edit</button>
@@ -401,18 +416,9 @@
       });
     }
 
-    function renderNextAgenda() {
+    // Mengganti render fungsi lama agar menerima list data global hasil filter limit 10
+    function renderNextAgenda(nextAgendas) {
       nextAgendaList.innerHTML = '';
-      const today = new Date().setHours(0,0,0,0);
-      
-      const nextAgendas = schedules
-        .filter(s => new Date(s.jadwal_dibersihkan).setHours(0,0,0,0) >= today)
-        .sort((a, b) => {
-          const diffDate = new Date(a.jadwal_dibersihkan) - new Date(b.jadwal_dibersihkan);
-          if (diffDate !== 0) return diffDate;
-          return (a.aksi_ke || 0) - (b.aksi_ke || 0);
-        })
-        .slice(0, 4);
 
       if (nextAgendas.length === 0) {
         nextAgendaList.innerHTML = `<div class="bg-white rounded-2xl p-6 text-center text-gray-400 border border-gray-200 text-sm shadow-sm">Belum ada agenda terdekat.</div>`;
@@ -421,7 +427,17 @@
 
       nextAgendas.forEach(item => {
         const div = document.createElement('div');
-        div.className = "bg-white rounded-2xl p-3 shadow-sm border border-gray-200 flex items-center justify-between gap-3";
+        div.className = "bg-white rounded-2xl p-3 shadow-sm border border-gray-200 flex items-center justify-between gap-3 cursor-pointer hover:bg-gray-50 transition active:scale-[0.99]";
+        
+        // Interaktivitas klik: Otomatis memindahkan fokus kalender ke target tanggal
+        div.onclick = () => {
+          const targetDate = new Date(item.jadwal_dibersihkan);
+          currentDate = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
+          selectedDateStr = item.jadwal_dibersihkan;
+          detailCard.classList.remove('hidden');
+          fetchSchedules();
+        };
+
         div.innerHTML = `
           <div class="min-w-0 flex-1">
             <span class="inline-block text-[9px] font-bold bg-slate-100 text-slate-600 px-1 rounded mb-0.5">Aksi Ke-${item.aksi_ke || '-'}</span>
@@ -430,7 +446,7 @@
           </div>
           <div class="text-right shrink-0">
             <span class="block text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">
-              ${new Date(item.jadwal_dibersihkan).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+              ${new Date(item.jadwal_dibersihkan).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: '2-digit' })}
             </span>
           </div>
         `;
@@ -490,6 +506,15 @@
         fetchSchedules();
       };
 
+      document.getElementById('btn-today').onclick = () => {
+        const today = new Date();
+        currentDate = new Date(today.getFullYear(), today.getMonth(), 1);
+        selectedDateStr = formatDateLocal(today);
+        
+        detailCard.classList.remove('hidden');
+        fetchSchedules(); 
+      };
+
       document.getElementById('btn-add').onclick = () => {
         document.getElementById('modal-title').innerText = "Tambah Jadwal Korrem";
         scheduleForm.reset();
@@ -536,6 +561,7 @@
 
         modalForm.classList.add('hidden');
         fetchSchedules();
+        fetchNextAgendaGlobal();
       };
     }
 
@@ -558,6 +584,7 @@
       if (confirm('Apakah Anda yakin ingin menghapus jadwal ini?')) {
         await supabaseClient.from('masjid_schedules').delete().eq('id', id);
         fetchSchedules();
+        fetchNextAgendaGlobal();
       }
     };
   </script>
