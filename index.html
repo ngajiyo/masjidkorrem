@@ -46,9 +46,9 @@
         </div>
       </div>
 
-      <!-- Nama Hari -->
+      <!-- Nama Hari (Format Baru: Dimulai dari Senin) -->
       <div class="grid grid-cols-7 gap-1 text-center text-xs font-medium text-gray-400 mb-2">
-        <div>Min</div><div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div><div>Sab</div>
+        <div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div><div>Sab</div><div>Min</div>
       </div>
 
       <!-- Grid Tanggal -->
@@ -114,6 +114,18 @@
             <input required type="number" id="form-aksi-ke" min="1" placeholder="Contoh: 1" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-sm focus:outline-none focus:border-blue-500">
           </div>
         </div>
+        
+        <div class="grid grid-cols-2 gap-2 border-t pt-3">
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Link Instagram Dokumentasi</label>
+            <input type="url" id="form-instagram" placeholder="https://instagram.com/..." class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-sm focus:outline-none focus:border-blue-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Link Facebook Dokumentasi</label>
+            <input type="url" id="form-facebook" placeholder="https://facebook.com/..." class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-sm focus:outline-none focus:border-blue-500">
+          </div>
+        </div>
+
         <div class="flex items-center gap-2 py-1">
           <input type="checkbox" id="form-selesai" class="w-4 h-4 rounded text-blue-600">
           <label for="form-selesai" class="text-sm font-medium text-slate-700">Sudah dibersihkan oleh Korrem</label>
@@ -132,14 +144,12 @@
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBmaWNod25mZmZqemlidXNvZmFvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTgzMTQ2MiwiZXhwIjoyMDgxNDA3NDYyfQ.dDx1TLlOGT_ZYRWrRh8Rj1-3sn7tFhiAawiUb02KsVs";
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // State Aplikasi
     let currentDate = new Date();
     let schedules = [];
     let selectedDateStr = null;
     let clickCount = 0;
     let isAdmin = false;
 
-    // DOM Elements
     const calendarGrid = document.getElementById('calendar-grid');
     const monthYearTitle = document.getElementById('calendar-month-year');
     const headerTitle = document.getElementById('header-title');
@@ -225,10 +235,16 @@
 
       const year = currentDate.getFullYear();
       const month = currentDate.getMonth();
-      const startDay = new Date(year, month, 1).getDay();
+      
+      // LOGIKA BARU: Ambil index hari pertama (0 = Ahad, 1 = Senin, dst)
+      let startDay = new Date(year, month, 1).getDay();
+      // Konversi: Senin menjadi 0, Selasa=1, ..., Ahad/Minggu menjadi 6
+      startDay = startDay === 0 ? 6 : startDay - 1;
+
       const totalDays = new Date(year, month + 1, 0).getDate();
       const todayStr = formatDateLocal(new Date());
 
+      // Menambahkan kontainer kosong untuk offset tanggal awal bulan
       for (let i = 0; i < startDay; i++) {
         calendarGrid.appendChild(document.createElement('div'));
       }
@@ -247,19 +263,15 @@
         const btn = document.createElement('button');
         btn.type = 'button';
         
-        // Logika pewarnaan iOS yang diperbarui agar fleksibel dan tidak bertabrakan
         let baseColors = 'text-slate-700 hover:bg-gray-100';
         let outlineStyle = '';
 
         if (isToday) {
-          // Hari ini selalu biru agak tua, angka putih
           baseColors = 'bg-blue-700 text-white font-bold shadow-md';
         } else if (isAllFinished) {
-          // Selesai semua diberi border hijau lingkaran penuh
           baseColors = 'border-2 border-green-500 bg-green-50 text-green-700 font-bold';
         }
 
-        // Jika tanggal ini sedang dipilih/diklik oleh user, tambahkan outline ring biru luar saja
         if (isSelected) {
           outlineStyle = 'ring-2 ring-blue-500 ring-offset-2';
         }
@@ -267,7 +279,6 @@
         btn.className = `relative py-2.5 text-sm font-medium rounded-full flex flex-col items-center justify-center transition active:scale-95 aspect-square ${baseColors} ${outlineStyle}`;
         btn.innerText = day;
 
-        // Titik indikator amber hanya jika ada jadwal yang belum selesai, dan tidak menyala saat bertumpuk di tanggal 'Hari Ini' agar kontras
         if (hasSchedule && !isAllFinished) {
           const dot = document.createElement('span');
           dot.className = `absolute bottom-1 w-1.5 h-1.5 rounded-full ${isToday ? 'bg-white' : 'bg-amber-500'}`;
@@ -303,6 +314,19 @@
       }
 
       activeSchedules.forEach(item => {
+        let socialLinksHtml = '';
+        if (item.link_instagram || item.link_facebook) {
+          socialLinksHtml += `<div class="flex gap-1.5 pt-1.5 items-center">
+            <span class="text-[10px] text-gray-400 font-medium">Dokumentasi:</span>`;
+          if (item.link_instagram) {
+            socialLinksHtml += `<a href="${item.link_instagram}" target="_blank" class="bg-gradient-to-tr from-yellow-500 via-purple-500 to-blue-500 text-white px-2 py-0.5 rounded text-[10px] font-semibold">📸 Instagram</a>`;
+          }
+          if (item.link_facebook) {
+            socialLinksHtml += `<a href="${item.link_facebook}" target="_blank" class="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] font-semibold">👥 Facebook</a>`;
+          }
+          socialLinksHtml += `</div>`;
+        }
+
         const div = document.createElement('div');
         div.className = "p-3 bg-slate-50 rounded-xl space-y-2 border border-slate-100 shadow-sm";
         div.innerHTML = `
@@ -316,6 +340,9 @@
             </span>
           </div>
           <p class="text-xs text-gray-600">📍 ${item.alamat_masjid}</p>
+          
+          ${socialLinksHtml}
+
           <div class="text-xs text-gray-500 pt-2 border-t border-dashed flex justify-between items-center">
             <div><p class="font-medium text-slate-700">Takmir: ${item.nama_takmir}</p></div>
             <a href="https://wa.me/${item.no_wa_takmir.replace(/[^0-9]/g, '')}" target="_blank" class="bg-emerald-500 text-white px-3 py-1 rounded-full font-semibold text-[11px]">💬 WhatsApp</a>
@@ -450,7 +477,7 @@
       document.getElementById('btn-exit-admin').onclick = () => {
         isAdmin = false;
         adminActions.classList.add('hidden');
-        headerTitle.innerHTML = '静态 127394; Jadwal Korrem Masjid';
+        headerTitle.innerHTML = '静态 🕌 Jadwal Korrem Masjid';
         if (selectedDateStr) renderDetail();
       };
 
@@ -496,7 +523,9 @@
           no_wa_takmir: document.getElementById('form-wa').value,
           jadwal_dibersihkan: document.getElementById('form-tanggal').value,
           aksi_ke: parseInt(document.getElementById('form-aksi-ke').value) || 1,
-          status_selesai: document.getElementById('form-selesai').checked
+          status_selesai: document.getElementById('form-selesai').checked,
+          link_instagram: document.getElementById('form-instagram').value,
+          link_facebook: document.getElementById('form-facebook').value
         };
 
         if (id) {
@@ -520,6 +549,8 @@
       document.getElementById('form-tanggal').value = item.jadwal_dibersihkan;
       document.getElementById('form-aksi-ke').value = item.aksi_ke || 1;
       document.getElementById('form-selesai').checked = item.status_selesai;
+      document.getElementById('form-instagram').value = item.link_instagram || '';
+      document.getElementById('form-facebook').value = item.link_facebook || '';
       modalForm.classList.remove('hidden');
     };
 
