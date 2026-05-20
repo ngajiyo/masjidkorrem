@@ -14,7 +14,7 @@
   <!-- HEADER BAR -->
   <header class="bg-white border-b border-gray-200 sticky top-0 z-10 px-4 py-3 flex justify-between items-center shadow-sm">
     <h1 id="header-title" class="text-xl font-bold select-none cursor-pointer tracking-tight text-slate-800 active:opacity-60 transition">
-        🕌 Jadwal Agenda Korrem
+        自由 Jadwal Agenda Korrem
     </h1>
     <div id="admin-actions" class="hidden flex gap-2 items-center">
       <button id="btn-add" class="bg-blue-600 hover:bg-blue-700 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-lg shadow-sm transition">+</button>
@@ -26,24 +26,25 @@
     
     <!-- IOS STYLE CALENDAR CARD -->
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4">
-      <div class="flex justify-between items-center mb-4">
-        <div class="relative flex items-center gap-1">
-          <h2 id="calendar-month-year" class="text-lg font-semibold text-slate-800 cursor-pointer hover:bg-gray-100 px-2 py-1 rounded-lg transition flex items-center gap-1 select-none">
-            <span>Mei 2026</span> <span class="text-xs text-gray-400">▼</span>
-          </h2>
+      
+      <!-- MODIFIED HEADER CALENDAR LOGIC -->
+      <div class="flex justify-between items-center mb-4 bg-gray-50/50 p-1.5 rounded-xl border border-gray-100">
+        <button id="btn-prev-month" class="p-2 px-3 bg-white hover:bg-gray-100 border border-gray-200 rounded-lg text-blue-600 font-semibold text-sm active:scale-95 transition shadow-sm">&#10094;</button>
+        
+        <div class="relative flex flex-col items-center flex-1">
+          <button id="calendar-month-year" class="text-base font-bold text-slate-800 hover:bg-gray-100 px-3 py-1 rounded-lg transition flex items-center gap-1 select-none active:scale-[0.98]">
+            <span>Mei 2026</span> <span class="text-[10px] text-gray-400">▼</span>
+          </button>
+          <button id="btn-today" class="text-[10px] font-bold text-blue-600 hover:text-blue-700 tracking-wide uppercase mt-0.5 transition active:scale-95">Hari Ini</button>
           
           <!-- Dropdown Menu -->
-          <div id="nav-dropdown" class="hidden absolute top-10 left-0 bg-white border border-gray-200 rounded-xl shadow-xl p-3 z-20 w-64 flex gap-2 animate-fadeIn">
+          <div id="nav-dropdown" class="hidden absolute top-12 left-1/2 -translate-x-1/2 bg-white border border-gray-200 rounded-xl shadow-xl p-3 z-20 w-64 flex gap-2 animate-fadeIn">
             <select id="select-month" class="flex-1 bg-gray-50 border border-gray-200 rounded-lg p-1.5 text-sm focus:outline-none focus:border-blue-500"></select>
             <select id="select-year" class="flex-1 bg-gray-50 border border-gray-200 rounded-lg p-1.5 text-sm focus:outline-none focus:border-blue-500"></select>
           </div>
         </div>
 
-        <div class="flex gap-2 text-blue-600 font-semibold items-center">
-          <button id="btn-prev-month" class="p-1 px-3 bg-gray-50 rounded-lg active:bg-gray-200 text-sm">&#10094;</button>
-          <button id="btn-today" class="p-1 px-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-xs font-bold transition active:scale-95">Hari Ini</button>
-          <button id="btn-next-month" class="p-1 px-3 bg-gray-50 rounded-lg active:bg-gray-200 text-sm">&#10095;</button>
-        </div>
+        <button id="btn-next-month" class="p-2 px-3 bg-white hover:bg-gray-100 border border-gray-200 rounded-lg text-blue-600 font-semibold text-sm active:scale-95 transition shadow-sm">&#10095;</button>
       </div>
 
       <!-- Nama Hari -->
@@ -227,12 +228,10 @@
     }
 
     async function fetchCounterMasjid() {
-      // Mengambil total baris keseluruhan di database
       const { count: totalCount, error: errTotal } = await supabaseClient
         .from('masjid_schedules')
         .select('*', { count: 'exact', head: true });
 
-      // Mengambil jumlah baris yang status_selesai bernilai true
       const { count: selesaiCount, error: errSelesai } = await supabaseClient
         .from('masjid_schedules')
         .select('*', { count: 'exact', head: true })
@@ -328,6 +327,8 @@
           baseColors = 'bg-blue-700 text-white font-bold shadow-md';
         } else if (isAllFinished) {
           baseColors = 'border-2 border-green-500 bg-green-50 text-green-700 font-bold';
+        } else if (hasSchedule) {
+          baseColors = 'border-2 border-red-500 bg-red-50 text-red-700 font-bold';
         }
 
         if (isSelected) {
@@ -336,12 +337,6 @@
 
         btn.className = `relative py-2.5 text-sm font-medium rounded-full flex flex-col items-center justify-center transition active:scale-95 aspect-square ${baseColors} ${outlineStyle}`;
         btn.innerText = day;
-
-        if (hasSchedule && !isAllFinished) {
-          const dot = document.createElement('span');
-          dot.className = `absolute bottom-1 w-1.5 h-1.5 rounded-full ${isToday ? 'bg-white' : 'bg-amber-500'}`;
-          btn.appendChild(dot);
-        }
 
         btn.onclick = () => {
           selectedDateStr = isSelected ? null : dateStr;
@@ -358,7 +353,6 @@
       }
     }
 
-    // 2. DETAIL MASJID MENGGUNAKAN KOLOM item.gmaps
     function renderDetail() {
       detailDateTitle.innerText = `Jadwal Tanggal: ${new Date(selectedDateStr).toLocaleDateString('id-ID', { dateStyle: 'medium' })}`;
       detailList.innerHTML = '';
@@ -386,25 +380,27 @@
           socialLinksHtml += `</div>`;
         }
 
-        // Generate button berdasarkan properti item.gmaps
         let gmapsHtml = '';
         if (item.gmaps) {
-          gmapsHtml = `<a href="${item.gmaps}" target="_blank" class="inline-flex items-center gap-0.5 ml-2 bg-blue-50 text-blue-600 hover:bg-blue-100 px-1.5 py-0.5 rounded text-[10px] font-semibold transition">📍 Peta Lokasi</a>`;
+          gmapsHtml = `<a href="${item.gmaps}" target="_blank" class="inline-flex items-center gap-0.5 ml-2 bg-blue-50 text-blue-600 hover:bg-blue-100 px-1.5 py-0.5 rounded text-[10px] font-semibold transition shrink-0">📍 Peta Lokasi</a>`;
         }
 
         const div = document.createElement('div');
         div.className = "p-3 bg-slate-50 rounded-xl space-y-2 border border-slate-100 shadow-sm";
         div.innerHTML = `
           <div class="flex justify-between items-start gap-1">
-            <div class="min-w-0">
+            <div class="min-w-0 flex-1">
               <span class="inline-block text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded font-bold mb-1">Aksi Ke-${item.aksi_ke || '-'}</span>
-              <h4 class="font-bold text-base text-slate-800 truncate">${item.nama_masjid}</h4>
+              <div class="flex items-center gap-1 flex-wrap">
+                <h4 class="font-bold text-base text-slate-800 truncate max-w-[180px]">${item.nama_masjid}</h4>
+                ${gmapsHtml}
+              </div>
             </div>
             <span class="text-[10px] shrink-0 px-2 py-0.5 rounded-full font-semibold ${item.status_selesai ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">
               ${item.status_selesai ? 'Selesai' : 'Rencana'}
             </span>
           </div>
-          <p class="text-xs text-gray-600">📍 ${item.alamat_masjid} ${gmapsHtml}</p>
+          <p class="text-xs text-gray-600">📍 ${item.alamat_masjid}</p>
           
           ${socialLinksHtml}
 
@@ -466,7 +462,6 @@
       });
     }
 
-    // 3. AGENDA MENDATANG MENGGUNAKAN KOLOM item.gmaps
     function renderNextAgenda(nextAgendas) {
       nextAgendaList.innerHTML = '';
 
@@ -489,14 +484,17 @@
 
         let inlineGmaps = '';
         if (item.gmaps) {
-          inlineGmaps = `<a href="${item.gmaps}" target="_blank" onclick="event.stopPropagation();" class="text-blue-500 hover:text-blue-700 inline-block font-bold ml-1">🗺️ Map</a>`;
+          inlineGmaps = `<a href="${item.gmaps}" target="_blank" onclick="event.stopPropagation();" class="text-blue-500 hover:text-blue-700 font-semibold text-[11px] inline-flex items-center gap-0.5 bg-blue-50 px-1.5 py-0.5 rounded shrink-0">🗺️ Map</a>`;
         }
 
         div.innerHTML = `
           <div class="min-w-0 flex-1">
             <span class="inline-block text-[9px] font-bold bg-slate-100 text-slate-600 px-1 rounded mb-0.5">Aksi Ke-${item.aksi_ke || '-'}</span>
-            <h4 class="font-semibold text-slate-800 text-sm truncate">${item.nama_masjid}</h4>
-            <p class="text-[11px] text-gray-400 truncate">📍 ${item.alamat_masjid} ${inlineGmaps}</p>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <h4 class="font-semibold text-slate-800 text-sm truncate max-w-[160px]">${item.nama_masjid}</h4>
+              ${inlineGmaps}
+            </div>
+            <p class="text-[11px] text-gray-400 truncate">📍 ${item.alamat_masjid}</p>
           </div>
           <div class="text-right shrink-0">
             <span class="block text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">
@@ -592,14 +590,13 @@
         renderCalendar();
       };
 
-      // 4. PROSES SUBMIT UPDATE & INSERT MENYESUAIKAN KOLOM gmaps
       scheduleForm.onsubmit = async (e) => {
         e.preventDefault();
         const id = document.getElementById('form-id').value;
         const payload = {
           nama_masjid: document.getElementById('form-nama').value,
           alamat_masjid: document.getElementById('form-alamat').value,
-          gmaps: document.getElementById('form-gmaps').value, // mapping ke kolom 'gmaps'
+          gmaps: document.getElementById('form-gmaps').value,
           nama_takmir: document.getElementById('form-takmir').value,
           no_wa_takmir: document.getElementById('form-wa').value,
           jadwal_dibersihkan: document.getElementById('form-tanggal').value,
@@ -622,13 +619,12 @@
       };
     }
 
-    // 5. PARSING DATA EDIT MENYESUAIKAN KOLOM item.gmaps
     window.openEditForm = (item) => {
       document.getElementById('modal-title').innerText = "Edit Jadwal Masjid";
       document.getElementById('form-id').value = item.id;
       document.getElementById('form-nama').value = item.nama_masjid;
       document.getElementById('form-alamat').value = item.alamat_masjid;
-      document.getElementById('form-gmaps').value = item.gmaps || ''; // parsing dari 'gmaps'
+      document.getElementById('form-gmaps').value = item.gmaps || '';
       document.getElementById('form-takmir').value = item.nama_takmir;
       document.getElementById('form-wa').value = item.no_wa_takmir;
       document.getElementById('form-tanggal').value = item.jadwal_dibersihkan;
